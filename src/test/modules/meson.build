@@ -1,6 +1,7 @@
 # Copyright (c) 2022-2026, PostgreSQL Global Development Group
 
 subdir('brin')
+subdir('checksum_tests')
 subdir('commit_ts')
 subdir('delay_execution')
 subdir('dummy_index_am')

@@ -25,6 +25,7 @@ backend_sources += files(
   'bytea.c',
   'cash.c',
   'char.c',
+  'checksumfuncs.o',
   'cryptohashfuncs.c',
   'date.c',
   'datetime.c',

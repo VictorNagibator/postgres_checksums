@@ -21,4 +21,7 @@
  */
 extern uint16 pg_checksum_page(char *page, BlockNumber blkno);
 
+/* Compute checksum for arbitrary data block */
+extern uint32 pg_checksum_data(const char *data, uint32 len, uint32 init_value);
+
 #endif							/* CHECKSUM_H */

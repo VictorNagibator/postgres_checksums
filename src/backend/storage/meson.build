@@ -2,6 +2,7 @@
 
 subdir('aio')
 subdir('buffer')
+subdir('checksum')
 subdir('file')
 subdir('freespace')
 subdir('ipc')

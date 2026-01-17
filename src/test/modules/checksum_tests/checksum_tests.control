@@ -1,0 +1,5 @@
+# checksum_tests.control
+comment = 'Checksum functionality tests'
+default_version = '1.0'
+module_pathname = '$libdir/checksum_tests'
+relocatable = true

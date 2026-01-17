@@ -26,6 +26,7 @@ OBJS = \
 	bytea.o \
 	cash.o \
 	char.o \
+	checksumfuncs.o \
 	cryptohashfuncs.o \
 	date.o \
 	datetime.o \

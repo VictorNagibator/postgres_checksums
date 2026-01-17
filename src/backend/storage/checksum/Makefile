@@ -1,20 +1,23 @@
 #-------------------------------------------------------------------------
 #
 # Makefile--
-#    Makefile for storage/page
+#    Makefile for storage/checksum
 #
 # IDENTIFICATION
-#    src/backend/storage/page/Makefile
+#    src/backend/storage/checksum/Makefile
 #
 #-------------------------------------------------------------------------
 
-subdir = src/backend/storage/page
+subdir = src/backend/storage/checksum
 top_builddir = ../../../..
 include $(top_builddir)/src/Makefile.global
 
 OBJS =  \
-	bufpage.o \
-	itemptr.o
+	checksum.o \
+	checksum_tuple.o \
+	checksum_column.o \
+	checksum_index.o \
+	checksum_database.o
 
 include $(top_srcdir)/src/backend/common.mk
 

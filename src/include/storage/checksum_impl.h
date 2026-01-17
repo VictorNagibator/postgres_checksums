@@ -213,3 +213,124 @@ pg_checksum_page(char *page, BlockNumber blkno)
 	 */
 	return (uint16) ((checksum % 65535) + 1);
 }
+
+/*
+ * Compute checksum for arbitrary data block.
+ * This is similar to pg_checksum_block but works with arbitrary length data.
+ */
+static uint32
+pg_checksum_data_internal(const char *data, uint32 len, uint32 init_value)
+{
+    uint32      sums[N_SUMS];
+    uint32      result = init_value;
+    uint32      i, j, k;
+    uint32      words;
+    const uint32 *p;
+    
+    /* Ensure data is at least 4-byte aligned for performance */
+    Assert((uintptr_t)data % 4 == 0);
+    
+    /* initialize partial checksums to their corresponding offsets */
+    memcpy(sums, checksumBaseOffsets, sizeof(checksumBaseOffsets));
+    
+    /* main checksum calculation - process full words */
+    words = len / sizeof(uint32);
+    p = (const uint32 *) data;
+    
+    for (i = 0; i < words; i++)
+    {
+        /* Cycle through all N_SUMS partial sums */
+        j = i % N_SUMS;
+        CHECKSUM_COMP(sums[j], p[i]);
+    }
+    
+    /* Process remaining bytes if length not multiple of 4 */
+    if (len % sizeof(uint32) != 0)
+    {
+        uint32 last_word = 0;
+        uint32 remaining = len % sizeof(uint32);
+        const char *tail = data + (words * sizeof(uint32));
+        
+        for (k = 0; k < remaining; k++)
+        {
+            last_word |= ((uint32)(unsigned char)tail[k]) << (k * 8);
+        }
+        
+        /* Use next partial sum */
+        j = words % N_SUMS;
+        CHECKSUM_COMP(sums[j], last_word);
+    }
+    
+    /* Finally add in two rounds of zeroes for additional mixing */
+    for (i = 0; i < 2; i++)
+        for (j = 0; j < N_SUMS; j++)
+            CHECKSUM_COMP(sums[j], 0);
+    
+    /* xor fold partial checksums together */
+    for (i = 0; i < N_SUMS; i++)
+        result ^= sums[i];
+    
+    return result;
+}
+
+/*
+ * pg_checksum_data
+ *    Compute a 32-bit checksum for arbitrary binary data.
+ *
+ * This function extends the page checksum algorithm to work with arbitrary
+ * data blocks. It uses the same FNV-1a based algorithm as page checksums
+ * but handles variable-length data and alignment requirements.
+ *
+ * Parameters:
+ *    data:       Pointer to the data to checksum
+ *    len:        Length of data in bytes
+ *    init_value: Initial value for the checksum (used to incorporate
+ *                additional context like offset numbers)
+ *
+ * Returns:
+ *    32-bit checksum value
+ *
+ * Notes:
+ *    - Data is automatically aligned to 4-byte boundaries if necessary
+ *    - The algorithm processes data in 4-byte words for efficiency
+ *    - Partial words at the end are handled correctly
+ */
+uint32
+pg_checksum_data(const char *data, uint32 len, uint32 init_value)
+{
+    /* If data is already 4-byte aligned, use the fast path */
+    if ((uintptr_t)data % 4 == 0)
+    {
+        return pg_checksum_data_internal(data, len, init_value);
+    }
+    else
+    {
+        /* Copy to aligned buffer */
+        char *aligned_data;
+        uint32 checksum;
+        
+#ifdef FRONTEND
+        /* For external programs */
+        aligned_data = malloc(len + 4);
+        if (!aligned_data)
+            return 0;
+#else
+        /* Inside PostgreSQL */
+        aligned_data = (char *)palloc(len + 4);
+#endif
+        
+        /* Align to 4-byte boundary */
+        aligned_data = (char *)(((uintptr_t)aligned_data + 3) & ~(uintptr_t)3);
+        memcpy(aligned_data, data, len);
+        
+        checksum = pg_checksum_data_internal(aligned_data, len, init_value);
+        
+#ifdef FRONTEND
+        free(aligned_data);
+#else
+        pfree(aligned_data);
+#endif
+        
+        return checksum;
+    }
+}
